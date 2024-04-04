@@ -1,5 +1,4 @@
 from odoo import api, models, fields
-from odoo.http import request
 from odoo.exceptions import UserError
 import json
 import re
@@ -9,48 +8,18 @@ class OnlyofficeTemplate(models.Model):
     _description = 'ONLYOFFICE Template'
 
     name = fields.Char(required=True, string="Template Name")
-    file = fields.Binary(string="Document")
-    create_uid = fields.Many2one('res.users', string="Created By", readonly=True)
+    file = fields.Binary()
+    create_uid = fields.Many2one('res.users', readonly=True)
     create_date = fields.Datetime("Template Create Date", readonly=True)
-    attachment_id = fields.Many2one('ir.attachment', string="Document Attachment", readonly=True)
-    mimetype = fields.Char(string="Template Mimetype")
-
-
-    def get_model_record_fields(self, model_name, record_id, depth=0):
-        if depth > 2:
-            return 'Maximum recursion depth exceeded.'
-
-        result = []
-
-        if model_name not in self.env:
-            return f'Model {model_name} does not exist.'
-
-        record = self.env[model_name].browse(record_id)
-        if not record.exists():
-            return f'Record with ID {record_id} not found in model {model_name}.'
-
-        for field_name, field in self.env[model_name]._fields.items():
-            field_data = {
-                'model': model_name,
-                'name': field_name,
-                'string': field.string or "",
-                'type': field.type,
-            }
-
-            if field.type in ['many2one', 'one2many', 'many2many'] and field.comodel_name:
-                related_records = record.mapped(field_name)
-                field_data['value'] = [self.get_field_info(field.comodel_name, rec.id, depth + 1) for rec in related_records]
-            elif field.type not in ['many2one', 'one2many', 'many2many']:
-                field_data['value'] = record[field_name]
-
-            result.append(field_data)
-
-        return result
+    attachment_id = fields.Many2one('ir.attachment', readonly=True)
+    mimetype = fields.Char(default='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    models = fields.Selection([
+        ('sale.order', 'Sale Order'),
+        ('res.partner', 'Partner'),
+    ], string='Models', required=True)
 
     @api.model
     def create(self, vals):
-        #model_obj = self.get_field_info('sale.order', 1, 0) 
-
         record = super(OnlyofficeTemplate, self).create(vals)
         if vals.get('file'):
             attachment = self.env['ir.attachment'].create({
@@ -63,49 +32,65 @@ class OnlyofficeTemplate(models.Model):
             record.attachment_id = attachment.id
         return record
 
+    @api.model
+    def upload(self, vals):
+        record = super(OnlyofficeTemplate, self).create(vals)
+        if vals.get('file'):
+            attachment = self.env['ir.attachment'].create({
+                'name': record.name,
+                'mimetype': vals['mimetype'],
+                'datas': vals['file'],
+                'res_model': self._name,
+                'res_id': record.id,
+            })
+            record.attachment_id = attachment.id
+        return record
+
+    @api.model
+    def get_fields(self):
+        model_name = "sale.order"
+        
+        models_fields_info = {}
+        fields_info = self.env[model_name].fields_get()
+
+        for field_name, field_props in fields_info.items():
+            field_type = field_props['type']
+            
+            models_fields_info.setdefault(model_name, {})[field_name] = {
+                'name': field_name,
+                'string': field_props['string'],
+                'type': field_type
+            }
+            
+            # Если поле типа one2many, также получаем информацию о связанных полях
+            if field_type == 'one2many':
+                related_model_name = field_props['relation']
+                related_fields_info = self.env[related_model_name].fields_get()
+                
+                models_fields_info[related_model_name] = {
+                    related_field: {
+                        'name': related_field,
+                        'string': related_fields_info[related_field]['string'],
+                        'type': related_fields_info[related_field]['type']
+                    } for related_field in related_fields_info
+                }
+
+        return json.dumps(models_fields_info, ensure_ascii=False)
+
+    def action_delete_attachment(self):
+        self.ensure_one()
+        try:
+            if self.attachment_id:
+                self.attachment_id.unlink()
+            self.attachment_id = False
+            self.file = False
+            self.sudo().unlink()
+        except Exception as e:
+            raise UserError("Error on delete:" , str(e))
+        return
+
     def unlink(self):
         for record in self:
             if record.attachment_id:
                 record.attachment_id.unlink()
         return super(OnlyofficeTemplate, self).unlink()
-
-    @api.model
-    def get_fields(self):
-        '''
-        all_models = self.env['ir.model'].search([])
-        models_fields_info = {}
-        for model in all_models:
-            fields = self.env[model.model].fields_get()
-            models_fields_info[model.model] = {
-                field: {
-                    'name': clean_text(field),
-                    'string': clean_text(fields[field]['string']),
-                    'type': clean_text(fields[field]['type'])
-                } for field in fields
-            }
-        '''
-        models_fields_info = {}
-        fields = self.env["sale.order"].fields_get()
-        models_fields_info["sale.order"] = {
-            field: {
-                'name': field,
-                'string': clean_text(fields[field]['string']),
-                'type': fields[field]['type']
-            } for field in fields
-        }
-        result = json.dumps(models_fields_info, ensure_ascii=False)
-        return result
-
-    def action_delete_attachment(self):
-        self.ensure_one()
-        if self.attachment_id:
-            self.attachment_id.unlink()
-            self.attachment_id = False
-            self.file = False 
-            self.sudo().unlink()
-            return
-        else:
-            raise UserError("No document attached to delete.")
-    
-def clean_text(text):
-    return re.sub(r'[^a-zA-Z0-9]', ' ', text)

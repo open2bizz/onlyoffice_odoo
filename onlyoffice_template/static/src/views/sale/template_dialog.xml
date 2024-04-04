@@ -90,7 +90,7 @@
                 </div>
                 <t t-set-slot="footer">
                     <button
-                        class="btn btn-primary o-spreadsheet-create"
+                        class="btn btn-primary o-template-fill"
                         t-att-disabled="_buttonDisabled()"
                         t-on-click="_fillTemplate">
                         <t>Create</t>

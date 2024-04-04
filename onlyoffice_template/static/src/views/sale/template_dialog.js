@@ -28,7 +28,6 @@ export class TemplateDialog extends Component{
             templates: [],
             templatesCount: 0,
             selectedTemplateId: null,
-            offset: 1,
             offset: 0,
             isCreating: false,
         });
@@ -89,11 +88,11 @@ export class TemplateDialog extends Component{
     }
 
     async _fillTemplate() {
-        console.log(this)
+        this.state.isCreating = true;
+
         const templateId = this.state.selectedTemplateId;
         const resId = this.props.formControllerProps.resId;
         const resModel = this.props.formControllerProps.resModel;
-        //const relatedModels = this.props.formControllerProps.relatedModels;
         
         const response = await this.rpc('/onlyoffice/template/fill', {
             template_id: templateId,
@@ -114,7 +113,7 @@ export class TemplateDialog extends Component{
                 type: "danger"
             });
         }
-        return
+        this.data.close();
     }
 
     _selectTemplate(templateId) {
@@ -125,22 +124,14 @@ export class TemplateDialog extends Component{
         return this.state.selectedTemplateId === templateId;
     }
 
-    _hasSelection() {
-        return (
-            this.state.templates.find(
-                (template) => template.id === this.state.selectedTemplateId
-            ) || this.state.selectedTemplateId === null
-        );
-    }
-
     _onPagerChanged({ offset }) {
         this.state.offset = offset;
+        this.state.selectedTemplateId = null;
         return this._fetchTemplates(this.state.offset);
     }
 
     _buttonDisabled() {
-        console.log("_buttonDisabled", this.state.isCreating, !this._hasSelection())
-        return this.state.isCreating || !this._hasSelection();
+        return this.state.isCreating || this.state.selectedTemplateId === null;
     }
 }
 

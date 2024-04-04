@@ -6,6 +6,7 @@
 
 from odoo import http, SUPERUSER_ID
 from odoo.http import request
+from odoo.tools import file_open
 from odoo.tools.translate import _
 
 from odoo.addons.onlyoffice_odoo.utils import file_utils
@@ -125,20 +126,53 @@ class OnlyofficeTemplate_Connector(http.Controller):
         array_items = []
         markup_items = []
 
+        def get_related_values(submodel_name, record_ids, depth=0):
+            if depth > 3:
+                return []
+            records = http.request.env[submodel_name].with_user(SUPERUSER_ID).browse(record_ids)
+            result = []
+            for record in records:
+                record_values = record.read(fields=None)[0]
+                processed_record = {}
+                for key, value in record_values.items():
+                    field_dict = {}
+                    if isinstance(value, bytes):
+                        continue
+                    elif hasattr(value, '__html__'):
+                        field_dict[f"{submodel_name}_{key}"] = str(value)
+                        markup_items.append(field_dict)  # Добавляем в общий список markup_items
+                    elif isinstance(value, list) and value and http.request.env[submodel_name]._fields[key].type in ['one2many']:
+                        related_model = http.request.env[submodel_name]._fields[key].comodel_name
+                        processed_record[key] = get_related_values(related_model, value, depth+1)
+                    elif isinstance(value, tuple) and len(value) == 2:
+                        processed_record[key] = value[1]
+                    elif isinstance(value, datetime.datetime):
+                        processed_record[key] = value.strftime("%Y-%m-%d %H:%M:%S")
+                    elif isinstance(value, datetime.date):
+                        processed_record[key] = value.strftime('%Y-%m-%d')
+                    else:
+                        processed_record[key] = value
+                if processed_record:  # Если после обработки запись не пустая, добавляем ее в результат
+                    result.append(processed_record)
+            return result
+
         for key, value in record_values.items():
-            field_dict = {f"{model_name}_{key}": None}
-            
+            field_dict = {}
+
             if hasattr(value, '__html__'):
                 field_dict[f"{model_name}_{key}"] = str(value)
                 markup_items.append(field_dict)
-            elif isinstance(value, list) and value and http.request.env[model_name]._fields[key].type in ['one2many', 'many2many']:
+            elif isinstance(value, list) and value and http.request.env[model_name]._fields[key].type in ['one2many']:
                 related_model = http.request.env[model_name]._fields[key].comodel_name
                 related_records = http.request.env[related_model].with_user(SUPERUSER_ID).browse(value)
-                related_values = related_records.read(fields=None)
-                field_dict[f"{model_name}_{key}"] = related_values
+                related_values = get_related_values(related_model, value)
+                #related_values = related_records.read(fields=None)
+                field_dict[f"{related_model}"] = related_values
                 array_items.append(field_dict)
             else:
-                if isinstance(value, tuple) and len(value) == 2:
+                if isinstance(value, bytes):
+                        continue
+                elif isinstance(value, tuple) and len(value) == 2:
                     field_dict[f"{model_name}_{key}"] = value[1]
                 elif isinstance(value, datetime.datetime):
                     field_dict[f"{model_name}_{key}"] = value.strftime("%Y-%m-%d %H:%M:%S")
@@ -151,6 +185,14 @@ class OnlyofficeTemplate_Connector(http.Controller):
         url = "http://192.168.0.100:8069/onlyoffice/template/download/" + template_attachment_id
         url_with_params = f"{url}?oo_security_token={oo_security_token}"
 
+
+        def get_record_by_name(array_items, model_name):
+            for item in array_items:
+                if model_name in item:
+                    return item[model_name]
+            return None
+
+
         non_array_items_dict = {key: value for d in non_array_items for key, value in d.items()}
         def python_to_js(value):
             if isinstance(value, bool):
@@ -162,19 +204,26 @@ class OnlyofficeTemplate_Connector(http.Controller):
             return value
 
         formatted_non_array_items = {k: python_to_js(v) for k, v in non_array_items_dict.items()}
-        json_non_array_items = json.dumps(formatted_non_array_items, indent=4)
+        json_non_array_items = json.dumps(formatted_non_array_items, ensure_ascii=False)
         json_non_array_items = json_non_array_items.replace('true', 'true').replace('false', 'false').replace('null', 'null')
 
+        json_array_items = json.dumps(array_items, ensure_ascii=False)
+        json_array_items = json_array_items.replace('true', 'true').replace('false', 'false').replace('null', 'null')
 
         file_content = f"""
         builder.OpenFile("{url_with_params}");
         var oDocument = Api.GetDocument();
-
+        
+        var array_data = {json_array_items};
         var data = {json_non_array_items};
 
         var aForms = oDocument.GetAllForms();
         aForms.forEach(form => {{
-            if (form.GetFormType() == "textForm") form.SetText(data[form.GetFormKey()]);
+            if (form.GetFormType() == "textForm") {{
+                if (data[form.GetFormKey()]) {{
+                    form.SetText(String(data[form.GetFormKey()]));
+                }}
+            }}
             if (form.GetFormType() == "checkBoxForm") {{
                 var value = data[form.GetFormKey()];
                 if (value) {{
@@ -188,10 +237,84 @@ class OnlyofficeTemplate_Connector(http.Controller):
             }}
         }});
 
+        function findRecordsByModel(key) {{
+            for (let i = 0; i < array_data.length; i++) {{
+                if (array_data[i][key]) return array_data[i][key];
+            }}
+            return [];
+        }}
+
+        var oTables = oDocument.GetAllTables();
+
+        oTables.forEach(oTable => {{
+            var rows = oTable.GetRowsCount();
+            for (let row = 0; row < rows; row++) {{
+                var oTableRow = oTable.GetRow(row);
+                var nCellsCount = oTableRow.GetCellsCount();
+                for (let col = 0; col < nCellsCount; col++) {{
+                    var oCell = oTable.GetCell(row, col);
+                    var oCellContent = oCell.GetContent();
+                    var oCellElementsCount = oCellContent.GetElementsCount();
+
+                    //enum of paragraphs inside the cell
+                    for (let cellElement = 0; cellElement < oCellElementsCount; cellElement++) {{
+                        var oCellElement = oCellContent.GetElement(cellElement);
+                        if (oCellElement.GetClassType() ===  "paragraph") {{
+                            var oParagraphElementsCount = oCellElement.GetElementsCount();
+
+                            //enum paragraph elements inside a cell
+                            for (let paragraphElement = 0; paragraphElement < oParagraphElementsCount; paragraphElement++) {{
+                                var oParagraphElement = oCellElement.GetElement(paragraphElement);
+
+                                //work with form
+                                if (oParagraphElement.GetClassType() === "form") {{
+                                    var oFormElement = oParagraphElement;
+                                    var oFormElementKey = oFormElement.GetFormKey();
+                                    
+                                    var modelKey = oFormElementKey.split("_");
+                                    var modelName = modelKey.shift();
+                                    modelKey = modelKey.join("_"); 
+
+                                    var records = findRecordsByModel(modelName);
+                                    if (records && oFormElement.GetFormType() == "textForm") {{
+                                        if (records[0]) {{
+                                            var text = records[0][modelKey];
+                                            if (text) oFormElement.SetText(String(text));
+                                        }}
+                                        
+                                        if (records.length > 1) {{
+                                            for (let record = 1; record < records.length; record++) {{
+                                                var oCurrentCell = oTable.GetCell(row + record, col);
+                                                if (oCurrentCell == null) {{
+                                                    oTable.AddRow(oTable.GetCell(row + record - 1, col), false);
+                                                    oCurrentCell = oTable.GetCell(row + record, col);
+                                                }}
+                                                if (oCurrentCell) {{
+                                                    var text = ""
+                                                    if (records[record]) {{
+                                                        if (records[record][modelKey]) text = records[record][modelKey];
+                                                    }}
+                                                    var oParagraph = oCurrentCell.GetContent().GetElement(0);
+                                                    oParagraph.AddText(String(text));
+                                                }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}
+                }}
+            }}
+        }});
+        
         Api.Save();
         builder.SaveFile("docxf", "output.docx");
         builder.CloseFile();
         """
+        
+        with file_open('onlyoffice_template/static/test.docbuilder', "r") as f:
+            test = f.read()
 
         headers = {
             'Content-Disposition': 'attachment; filename="fillform.docbuilder"',

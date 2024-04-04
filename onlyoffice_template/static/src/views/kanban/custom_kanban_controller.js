@@ -2,6 +2,7 @@
 import { KanbanController } from "@web/views/kanban/kanban_controller";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "web.core";
+import { CustomKanbanDialog } from "./custom_kanban_dialog"
 
 const { useState } = owl;
 
@@ -54,15 +55,22 @@ export class CustomKanbanController extends KanbanController {
     }
 
     async onButtonCreateTemplateClick() {
-        const result = await this.rpc(`/onlyoffice/template/file/create`);
-        if (result.error) {
-            this.notificationService.add(result.error, {type: "error", sticky: false}); 
-        } else {
-            this.notificationService.add(_t("New template created in Documents"), {type: "info", sticky: false});
-            await this._openTemplate(result.file_id);
-        }
-        this.model.load();
-        this.model.notify();
+        this.env.services.dialog.add(CustomKanbanDialog, {
+            resModel: 'onlyoffice.template',
+            title: this.env._t("Create"),
+            onSave: async (record) => {
+                console.log(record)
+                const result = await this.rpc(`/onlyoffice/template/file/create`);
+                if (result.error) {
+                    this.notificationService.add(result.error, {type: "error", sticky: false}); 
+                } else {
+                    this.notificationService.add(_t("New template created in Documents"), {type: "info", sticky: false});
+                    //await this._openTemplate(result.file_id);
+                }
+                this.model.load();
+                this.model.notify();
+            },
+         });
     }
 
     async _generateFieldsList() {

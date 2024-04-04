@@ -19,9 +19,12 @@
     </t>
 
     <t t-name="onlyoffice_template.CustomKanbanController.Buttons" t-inherit="web.KanbanView.Buttons" t-inherit-mode="primary" owl="1">
-        <xpath expr="//button[hasclass('o-kanban-button-new')]" position="replace">
-            <button type="button" class="btn btn-primary o-kanban-button-new-template" t-on-click="() => this.onButtonCreateTemplateClick()">
-                Create template
+        <xpath expr="//*[@class='btn btn-primary o-kanban-button-new']" position="replace">
+            <button type="button" class="btn btn-primary o-kanban-button-upload" t-on-click="() => this.onButtonCreateTemplateClick()">
+                Upload
+            </button>
+            <button type="button" class="btn btn-primary o-kanban-button-create" t-on-click="() => this.onButtonCreateTemplateClick()">
+                Create
             </button>
         </xpath>
     </t>
