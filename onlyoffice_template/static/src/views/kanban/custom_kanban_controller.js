@@ -15,15 +15,14 @@ export class CustomKanbanController extends KanbanController {
 
         this.state = useState({
             fields: {},
-            showEditor: false
+            isEditorVisible: false
         });
 
-        this.env.bus.on('template-click', this, (data) => this.templateClick(data));
+        this.env.bus.on('edit-template', this, (data) => this.handleTemplateEdit(data));
     }
 
-    async templateClick(data) {
-        console.log(data);
-        await this._openTemplate(data.attachment_id[0]);
+    async handleTemplateEdit(data) {
+        await this.openTemplateEditor(data.attachment_id[0]);
     }
 
     /*
@@ -42,7 +41,7 @@ export class CustomKanbanController extends KanbanController {
         one2many
         many2many
     */
-    async onFieldElementClick(_event, field) {
+    async onFieldElementClicked(_event, field) {
         const data = {
             model: field.model,
             name: field.name,
@@ -50,22 +49,21 @@ export class CustomKanbanController extends KanbanController {
             type: field.type
         }
         const iframe = document.querySelector("iframe");
-        console.log("onFieldElementClick: ", data)
-        iframe.contentWindow.postMessage(data, "http://192.168.0.100:8069");
+        iframe.contentWindow.postMessage(data, window.location.origin);
     }
 
-    async onButtonCreateTemplateClick() {
+    async onTemplateCreationButtonClick() {
         this.env.services.dialog.add(CustomKanbanDialog, {
             resModel: 'onlyoffice.template',
             title: this.env._t("Create"),
             onSave: async (record) => {
                 console.log(record)
-                const result = await this.rpc(`/onlyoffice/template/file/create`);
+                const result = await this.rpc(`/onlyoffice/template/create`);
                 if (result.error) {
                     this.notificationService.add(result.error, {type: "error", sticky: false}); 
                 } else {
                     this.notificationService.add(_t("New template created in Documents"), {type: "info", sticky: false});
-                    //await this._openTemplate(result.file_id);
+                    //await this.openTemplateEditor(result.file_id);
                 }
                 this.model.load();
                 this.model.notify();
@@ -73,16 +71,15 @@ export class CustomKanbanController extends KanbanController {
          });
     }
 
-    async _generateFieldsList() {
+    async generateFieldsList() {
         try {
-            const models = JSON.parse(await this.orm.call("onlyoffice.template", "get_fields", []));
+            const models = JSON.parse(await this.orm.call("onlyoffice.template", "get_fields_for_model", []));
             const array = [];
             let i = 0;
             Object.keys(models).forEach(model => {
                 const fields = models[model];
                 Object.keys(fields).forEach(fieldName => {
                     const field = fields[fieldName];
-                    console.log("field", field)
                     array.push({
                         model: model,
                         name: field.name,
@@ -93,23 +90,22 @@ export class CustomKanbanController extends KanbanController {
                     i++;
                 });
             });
-            console.log("fields", array);
             this.state.fields = array;
         } catch (error) {
             console.error("RPC Error:", error);
         }
     }
 
-    _embedIframe(id) {
+    embedIframe(id) {
         const iframeContainer = document.querySelector(".iframe");
         iframeContainer.innerHTML = `<iframe src="/onlyoffice/editor/${id}" frameborder="0" style="width:100%; height:100%;"></iframe>`;
     }
 
-    async _openTemplate(id) {
-        if (!this.state.showEditor) {
-            await this._generateFieldsList();
-            this._embedIframe(id);
-            this.state.showEditor = true;
+    async openTemplateEditor(id) {
+        if (!this.state.isEditorVisible) {
+            await this.generateFieldsList();
+            this.embedIframe(id);
+            this.state.isEditorVisible = true;
         }
     }
 }

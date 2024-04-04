@@ -1,10 +1,10 @@
 /** @odoo-module **/
 import { FormController } from "@web/views/form/form_controller";
-import { TemplateDialog } from "./template_dialog";
+import { TemplateFillDialog } from "./template_fill_dialog";
 
 export class CustomFormController extends FormController {
-    openTemplateDialog() {
-        this.env.services.dialog.add(TemplateDialog, {
+    openTemplateFillDialog() {
+        this.env.services.dialog.add(TemplateFillDialog, {
             formControllerProps: this.props
         });
     }

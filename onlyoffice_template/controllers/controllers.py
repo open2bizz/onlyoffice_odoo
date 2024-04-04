@@ -9,9 +9,7 @@ from odoo.http import request
 from odoo.tools import file_open
 from odoo.tools.translate import _
 
-from odoo.addons.onlyoffice_odoo.utils import file_utils
-from odoo.addons.onlyoffice_odoo.utils import jwt_utils
-from odoo.addons.onlyoffice_odoo.utils import config_utils
+from odoo.addons.onlyoffice_odoo.utils import file_utils, jwt_utils, config_utils
 
 import base64
 import requests
@@ -20,8 +18,8 @@ import datetime
 from urllib.request import urlopen
 
 class OnlyofficeTemplate_Connector(http.Controller):
-    @http.route("/onlyoffice/template/file/create", auth="user", methods=["POST"], type="json")
-    def template_create(self):
+    @http.route("/onlyoffice/template/create", auth="user", methods=["POST"], type="json")
+    def create_template(self):
         file_data = file_utils.get_default_file_template(request.env.user.lang, "docx")
         mimetype = file_utils.get_mime_by_ext("docx")
 
@@ -31,12 +29,10 @@ class OnlyofficeTemplate_Connector(http.Controller):
             "mimetype": mimetype
         })
         
-        return {
-            "file_id": attachment.attachment_id.id
-        }
+        return {"file_id": attachment.attachment_id.id}
     
-    @http.route("/onlyoffice/upload_file_from_url", auth="user", methods=["POST"], type="json")
-    def post_file_create(self, url, title):
+    @http.route("/onlyoffice/template/upload", auth="user", methods=["POST"], type="json")
+    def upload(self, url, title):
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
@@ -48,12 +44,9 @@ class OnlyofficeTemplate_Connector(http.Controller):
             if not response.headers['Content-Type']:
                 raise Exception("Unknown content type")
 
-            filename = title
             data = urlopen(url).read()
-
-
             attachment = request.env['onlyoffice.template'].create({
-                "name": filename,
+                "name": title,
                 "file": base64.encodebytes(data),
                 "mimetype": response.headers['Content-Type'],
             })
@@ -61,18 +54,20 @@ class OnlyofficeTemplate_Connector(http.Controller):
             return {'ids': attachment.id}
 
         except Exception as e:
-            raise Exception("error", str(e))
+            raise Exception("Error: ", str(e))
     
     @http.route("/onlyoffice/template/fill", auth="user", methods=["POST"], type="json")
     def fill_template(self, template_id, record_id, model_name):
-        jwt_secret="secret"
-        jwt_header="Authorization"
+        jwt_secret=config_utils.get_jwt_secret(request.env)
+        jwt_header=config_utils.get_jwt_header(request.env)
+        odoo_url = config_utils.get_odoo_url(request.env)
+        docserver_url = config_utils.get_doc_server_public_url(request.env)
 
         template_attachment_id = http.request.env["onlyoffice.template"].browse(template_id).attachment_id.id
 
         oo_security_token = jwt_utils.encode_payload(request.env, { "id": request.env.user.id }, config_utils.get_internal_jwt_secret(request.env))
 
-        data_url = "http://192.168.0.100:8069/onlyoffice/callback/template/fill"
+        data_url = odoo_url + "onlyoffice/template/callback/fill"
         data_url_with_params = f"{data_url}?template_attachment_id={template_attachment_id}&model_name={model_name}&record_id={record_id}&oo_security_token={oo_security_token}"
         data = {
             "async": False,
@@ -91,7 +86,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
             token = jwt_utils.encode_payload(request.env, data, jwt_secret)
             data["token"] = token
 
-        request_url = "http://documentserver/docbuilder"
+        request_url = docserver_url + "docbuilder"
         response = requests.post(request_url, data=json.dumps(data), headers = headers)
         
         response_json = json.loads(response.text)
@@ -116,7 +111,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
 
         return {'error': "Unknown error"}
     
-    @http.route("/onlyoffice/callback/template/fill", auth="public")
+    @http.route("/onlyoffice/template/callback/fill", auth="public")
     def template_callback(self, template_attachment_id, model_name, record_id, oo_security_token=None):
         record_id = int(record_id)
         record = http.request.env[model_name].with_user(SUPERUSER_ID).browse(record_id)
@@ -182,16 +177,8 @@ class OnlyofficeTemplate_Connector(http.Controller):
                     field_dict[f"{model_name}_{key}"] = value
                 non_array_items.append(field_dict)
 
-        url = "http://192.168.0.100:8069/onlyoffice/template/download/" + template_attachment_id
+        url = config_utils.get_odoo_url(request.env) + "onlyoffice/template/download/" + template_attachment_id
         url_with_params = f"{url}?oo_security_token={oo_security_token}"
-
-
-        def get_record_by_name(array_items, model_name):
-            for item in array_items:
-                if model_name in item:
-                    return item[model_name]
-            return None
-
 
         non_array_items_dict = {key: value for d in non_array_items for key, value in d.items()}
         def python_to_js(value):
@@ -313,8 +300,8 @@ class OnlyofficeTemplate_Connector(http.Controller):
         builder.CloseFile();
         """
         
-        with file_open('onlyoffice_template/static/test.docbuilder', "r") as f:
-            test = f.read()
+        #with file_open('onlyoffice_template/static/test.docbuilder', "r") as f:
+        #    test = f.read()
 
         headers = {
             'Content-Disposition': 'attachment; filename="fillform.docbuilder"',

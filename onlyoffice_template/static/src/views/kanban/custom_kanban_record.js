@@ -9,34 +9,31 @@ export class CustomKanbanRecord extends KanbanRecord {
         this.orm = useService("orm");
     }
 
-    getCreateDate() {
-        if (this.props.record.data?.create_date?.ts)
-            return new Date(this.props.record.data.create_date.ts).toLocaleDateString();
-        return ""
+    getCreationDate() {
+        const creationTimestamp = this.props.record.data?.create_date?.ts;
+        return creationTimestamp ? new Date(creationTimestamp).toLocaleDateString() : "";
     }
 
-    async _editTemplate() {
-        this.env.bus.trigger("template-click", this.props.record.data);
+    async editTemplate() {
+        this.env.bus.trigger("edit-template", this.props.record.data);
     }
 
-    async _deleteTemplate() {
+    async deleteTemplate() {
         this.dialog.add(ConfirmationDialog, {
             body: this.env._t("Are you sure you want to delete this template?"),
             confirm: async () => {
                 try {
-                    this.orm.call(
+                    await this.orm.call(
                         "onlyoffice.template",
                         "action_delete_attachment",
                         [this.props.record.data.id]
-                    ).then(() => {
-                        this.props.record.model.load();
-                        this.props.record.model.notify();
-                    });
+                    );
+                    this.props.record.model.load();
+                    this.props.record.model.notify();
                 } catch (error) {
-                    console.error("error deleting: ", error);
+                    console.error("Error deleting template:", error);
                 }
-            },
-            cancel: () => {},
+            }
         });
     }
 }

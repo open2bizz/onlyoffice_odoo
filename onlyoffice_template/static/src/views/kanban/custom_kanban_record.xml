@@ -10,9 +10,9 @@
                                 <span class="fa fa-ellipsis-v"/>
                             </a>
                             <div class="dropdown-menu" role="menu">
-                                <a role="menuitem" class="dropdown-item" t-on-click="_editTemplate">Edit</a>
+                                <a role="menuitem" class="dropdown-item" t-on-click="editTemplate">Edit</a>
                                 <a role="menuitem" class="dropdown-item" t-attf-href="/web/content/ir.attachment/#{props.record.data.attachment_id[0]}/datas?download=true">Download</a>
-                                <a role="menuitem" class="dropdown-item" t-on-click="_deleteTemplate">Delete</a>
+                                <a role="menuitem" class="dropdown-item" t-on-click="deleteTemplate">Delete</a>
                             </div>
                         </div>
                     </div>
@@ -38,7 +38,7 @@
                         <div class="o_kanban_record_bottom">
                             <time class="oe_kanban_bottom_left">
                                 <div name="create_date" class="o_field_widget o_readonly_modifier o_field_date">
-                                    <span t-esc="getCreateDate()"/>
+                                    <span t-esc="getCreationDate()"/>
                                 </div>
                             </time>
                             <div class="oe_kanban_bottom_right">

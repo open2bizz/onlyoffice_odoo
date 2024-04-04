@@ -2,10 +2,10 @@
 <templates>
     <t t-name="onlyoffice_template.CustomKanbanController" t-inherit="web.KanbanView" owl="1">
         <xpath expr="//Layout" position="after">
-            <div class="editor" t-att-style="!state.showEditor ? 'display: none;' : null">
+            <div class="editor" t-att-style="!state.isEditorVisible ? 'display: none;' : null">
                 <ul class="fields_list">
                     <t t-foreach="state.fields" t-as="field" t-key="field.key">
-                        <li t-on-click="(event) => this.onFieldElementClick(event, field)" class="field">
+                        <li t-on-click="(event) => this.onFieldElementClicked(event, field)" class="field">
                             Model: <t t-esc="field.model"/><br/>
                             Name: <t t-esc="field.name"/><br/>
                             String: <t t-esc="field.string"/><br/>
@@ -20,10 +20,10 @@
 
     <t t-name="onlyoffice_template.CustomKanbanController.Buttons" t-inherit="web.KanbanView.Buttons" t-inherit-mode="primary" owl="1">
         <xpath expr="//*[@class='btn btn-primary o-kanban-button-new']" position="replace">
-            <button type="button" class="btn btn-primary o-kanban-button-upload" t-on-click="() => this.onButtonCreateTemplateClick()">
+            <button type="button" class="btn btn-primary o-kanban-button-upload" t-on-click="() => this.onTemplateCreationButtonClick()">
                 Upload
             </button>
-            <button type="button" class="btn btn-primary o-kanban-button-create" t-on-click="() => this.onButtonCreateTemplateClick()">
+            <button type="button" class="btn btn-primary o-kanban-button-create" t-on-click="() => this.onTemplateCreationButtonClick()">
                 Create
             </button>
         </xpath>

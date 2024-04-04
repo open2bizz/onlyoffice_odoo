@@ -59,7 +59,7 @@
                                 odoo.define('onlyoffice_template.onlyoffice.template', function (require) {
                                     'use strict';
                                     var ajax = require('web.ajax');
-                                    ajax.rpc(`/onlyoffice/upload_file_from_url`, {
+                                    ajax.rpc(`/onlyoffice/template/upload`, {
                                         url: event.data.url,
                                         title: event.data.title
                                     });

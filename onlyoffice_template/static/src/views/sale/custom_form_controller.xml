@@ -2,7 +2,7 @@
 <templates>
     <t t-name="onlyoffice_template.CustomFormController" t-inherit="web.FormView">
         <xpath expr="//button[contains(@class, 'o_form_button_create')]" position="after">
-            <button class="btn btn-outline-primary" t-on-click="openTemplateDialog">Print with ONLYOFFICE</button>
+            <button class="btn btn-outline-primary" t-on-click="openTemplateFillDialog">Print with ONLYOFFICE</button>
         </xpath>
     </t>
 </templates>

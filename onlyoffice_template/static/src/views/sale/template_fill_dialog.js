@@ -4,14 +4,14 @@ import { SearchBar } from "@web/search/search_bar/search_bar";
 import { Pager } from "@web/core/pager/pager";
 import { DropPrevious } from "web.concurrency";
 import { SearchModel } from "@web/search/search_model";
-import { useBus, useService } from "@web/core/utils/hooks";
+import { useService } from "@web/core/utils/hooks";
 import { useHotkey } from "@web/core/hotkeys/hotkey_hook";
 import { getDefaultConfig } from "@web/views/view";
 import { _t } from "web.core";
 
 const { Component, useState, useSubEnv, useChildSubEnv, onWillStart } = owl;
 
-export class TemplateDialog extends Component{
+export class TemplateFillDialog extends Component{
     setup() {
         this.orm = useService("orm");
         this.rpc = useService("rpc");
@@ -26,10 +26,10 @@ export class TemplateDialog extends Component{
         this.state = useState({
             isOpen: true,
             templates: [],
-            templatesCount: 0,
+            totalTemplates: 0,
             selectedTemplateId: null,
-            offset: 0,
-            isCreating: false,
+            currentOffset: 0,
+            isProcessing: false,
         });
 
         useSubEnv({
@@ -48,7 +48,6 @@ export class TemplateDialog extends Component{
             searchModel: this.model,
         });
 
-        useBus(this.model, "update", () => this._fetchTemplates());
         this.dp = new DropPrevious();
 
         onWillStart(async () => {
@@ -66,16 +65,16 @@ export class TemplateDialog extends Component{
                 searchViewId: views.views.search.id,
                 searchViewFields: views.fields,
             });
-            await this._fetchTemplates();
+            await this.fetchTemplates();
         });
     }
 
-    async _fetchTemplates(offset = 0) {
+    async fetchTemplates(offset = 0) {
         const { domain, context } = this.model;
         const { records, length } = await this.dp.add(
             this.rpc("/web/dataset/search_read", {
                 model: "onlyoffice.template",
-                fields: ["name", "file", "create_date", "create_uid", "attachment_id", "mimetype"],
+                fields: ["name", "create_date", "create_uid", "attachment_id", "mimetype"],
                 domain,
                 context,
                 offset,
@@ -84,15 +83,14 @@ export class TemplateDialog extends Component{
             })
         );
         this.state.templates = records;
-        this.state.templatesCount = length;
+        this.state.totalTemplates = length;
     }
 
-    async _fillTemplate() {
-        this.state.isCreating = true;
+    async fillTemplate() {
+        this.state.isProcessing = true;
 
         const templateId = this.state.selectedTemplateId;
-        const resId = this.props.formControllerProps.resId;
-        const resModel = this.props.formControllerProps.resModel;
+        const { resId, resModel } = this.props.formControllerProps;
         
         const response = await this.rpc('/onlyoffice/template/fill', {
             template_id: templateId,
@@ -100,40 +98,34 @@ export class TemplateDialog extends Component{
             model_name: resModel,
         });
 
-        if (!response ) {
-            this.notificationService.add(_t("Unknown error"), {
-                type: "danger"
-            });
-        } 
-        else if (response.href) {
+        if (!response) {
+            this.notificationService.notify(_t("Unknown error"), { type: "danger" });
+        } else if (response.href) {
             window.location.href = response.href;
-        } 
-        else if (response.error) {
-            this.notificationService.add(_t(response.error), {
-                type: "danger"
-            });
+        } else if (response.error) {
+            this.notificationService.notify(_t(response.error), { type: "danger" });
         }
         this.data.close();
     }
 
-    _selectTemplate(templateId) {
+    selectTemplate(templateId) {
         this.state.selectedTemplateId = templateId;
     }
 
-    _isSelected(templateId) {
+    isSelected(templateId) {
         return this.state.selectedTemplateId === templateId;
     }
 
-    _onPagerChanged({ offset }) {
-        this.state.offset = offset;
+    onPagerChange({ offset }) {
+        this.state.currentOffset = offset;
         this.state.selectedTemplateId = null;
-        return this._fetchTemplates(this.state.offset);
+        return this.fetchTemplates(this.state.currentOffset);
     }
 
-    _buttonDisabled() {
-        return this.state.isCreating || this.state.selectedTemplateId === null;
+    isButtonDisabled() {
+        return this.state.isProcessing || this.state.selectedTemplateId === null;
     }
 }
 
-TemplateDialog.template = "onlyoffice_template.TemplateDialog";
-TemplateDialog.components = { Dialog, SearchBar, Pager };
+TemplateFillDialog.template = "onlyoffice_template.TemplateFillDialog";
+TemplateFillDialog.components = { Dialog, SearchBar, Pager };
