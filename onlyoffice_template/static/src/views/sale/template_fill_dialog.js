@@ -99,11 +99,11 @@ export class TemplateFillDialog extends Component{
         });
 
         if (!response) {
-            this.notificationService.notify(_t("Unknown error"), { type: "danger" });
+            this.notificationService.add(_t("Unknown error"), { type: "danger" });
         } else if (response.href) {
             window.location.href = response.href;
         } else if (response.error) {
-            this.notificationService.notify(_t(response.error), { type: "danger" });
+            this.notificationService.add(_t(response.error), { type: "danger" });
         }
         this.data.close();
     }

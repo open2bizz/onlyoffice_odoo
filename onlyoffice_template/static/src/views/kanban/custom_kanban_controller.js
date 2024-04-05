@@ -58,7 +58,9 @@ export class CustomKanbanController extends KanbanController {
             title: this.env._t("Create"),
             onSave: async (record) => {
                 console.log(record)
-                const result = await this.rpc(`/onlyoffice/template/create`);
+                const result = await this.rpc(`/onlyoffice/template/create`, {
+                    data: record.data
+                });
                 if (result.error) {
                     this.notificationService.add(result.error, {type: "error", sticky: false}); 
                 } else {

@@ -13,25 +13,25 @@ class OnlyOfficeTemplate(models.Model):
     creation_date = fields.Datetime("Creation Date", readonly=True)
     attachment_id = fields.Many2one('ir.attachment', readonly=True)
     mimetype = fields.Char(default='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-    models = fields.Selection([
+    model = fields.Selection([
         ('sale.order', 'Sale Order'),
         ('res.partner', 'Partner'),
     ], string='Applicable Models', required=True)
 
     @api.model
     def create(self, vals):
-        if 'file' in vals:
-            vals['attachment_id'] = self._create_attachment(vals).id
-        return super(OnlyOfficeTemplate, self).create(vals)
-
-    def _create_attachment(self, vals):
-        return self.env['ir.attachment'].create({
-            'name': vals.get('name'),
-            'mimetype': vals.get('mimetype', self.mimetype),
-            'datas': vals['file'],
-            'res_model': self._name,
-            'res_id': self.id,
-        })
+        datas = vals.pop('file', None)
+        record = super(OnlyOfficeTemplate, self).create(vals)
+        if datas:
+            attachment = self.env['ir.attachment'].create({
+                'name': vals.get('name', record.name),
+                'mimetype': vals.get('mimetype', ''),
+                'datas': datas,
+                'res_model': self._name,
+                'res_id': record.id,
+            })
+            record.attachment_id = attachment.id
+        return record
 
     @api.model
     def get_fields_for_model(self, model_name='sale.order'):
