@@ -46,6 +46,7 @@
         </template>
 
         <template id="onlyoffice_editor" name="ONLYOFFICE Editor">
+            <div id="extension">
             <t t-call="onlyoffice_odoo.onlyoffice_layout">
                 <div id="doceditor"></div>
                 <div id="error" class="w-25 m-auto my-5 py-5 d-flex flex-column d-none">
@@ -67,6 +68,7 @@
                     }
                 </script>
             </t>
+            </div>
         </template>
     </data>
 </odoo>
