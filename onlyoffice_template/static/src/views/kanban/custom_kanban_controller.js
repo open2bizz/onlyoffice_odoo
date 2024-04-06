@@ -14,7 +14,9 @@ export class CustomKanbanController extends KanbanController {
         this.notificationService = useService("notification");
 
         this.state = useState({
-            fields: {},
+            models: {},
+            fields: [],
+            visibleModel: '',
             isEditorVisible: false
         });
 
@@ -73,28 +75,41 @@ export class CustomKanbanController extends KanbanController {
          });
     }
 
-    async generateFieldsList() {
+    async getModels() {
         try {
             const models = JSON.parse(await this.orm.call("onlyoffice.template", "get_fields_for_model", []));
-            const array = [];
-            let i = 0;
-            Object.keys(models).forEach(model => {
-                const fields = models[model];
-                Object.keys(fields).forEach(fieldName => {
-                    const field = fields[fieldName];
-                    array.push({
-                        model: model,
-                        name: field.name,
-                        string: field.string,
-                        type: field.type,
-                        key: i
-                    });
-                    i++;
+            this.state.models = models;
+        } catch (error) {
+            console.error("getModels RPC Error:", error);
+        }
+    }
+
+    getArrayModels() {
+        return Object.keys(this.state.models).map((key, i) => ({
+            name: key,
+            key: i
+        }));
+    }
+
+    toggleModelFields(_event, model) {
+        if (!this.state.visibleModel || (this.state.visibleModel != model.name)) {
+            const fieldsArray = [];
+            const fields = this.state.models[model.name];
+            Object.keys(fields).forEach((fieldName, i) => {
+                const field = fields[fieldName];
+                fieldsArray.push({
+                    name: field.name,
+                    string: field.string,
+                    type: field.type,
+                    key: i
                 });
             });
-            this.state.fields = array;
-        } catch (error) {
-            console.error("RPC Error:", error);
+            this.state.fields = fieldsArray;
+            this.state.visibleModel = model.name;
+        } else {
+            this.state.fields = [];
+            this.state.visibleModel = '';
+            return
         }
     }
 
@@ -105,7 +120,7 @@ export class CustomKanbanController extends KanbanController {
 
     async openTemplateEditor(id) {
         if (!this.state.isEditorVisible) {
-            await this.generateFieldsList();
+            await this.getModels();
             this.embedIframe(id);
             this.state.isEditorVisible = true;
         }

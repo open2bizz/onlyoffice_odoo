@@ -136,7 +136,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
                         continue
                     elif hasattr(value, '__html__'):
                         field_dict[f"{submodel_name}_{key}"] = str(value)
-                        markup_items.append(field_dict)  # Добавляем в общий список markup_items
+                        markup_items.append(field_dict)
                     elif isinstance(value, list) and value and http.request.env[submodel_name]._fields[key].type in ['one2many']:
                         related_model = http.request.env[submodel_name]._fields[key].comodel_name
                         processed_record[key] = get_related_values(related_model, value, depth+1)
@@ -148,7 +148,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
                         processed_record[key] = value.strftime('%Y-%m-%d')
                     else:
                         processed_record[key] = value
-                if processed_record:  # Если после обработки запись не пустая, добавляем ее в результат
+                if processed_record:
                     result.append(processed_record)
             return result
 

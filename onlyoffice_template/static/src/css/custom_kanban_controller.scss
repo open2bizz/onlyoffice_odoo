@@ -1,7 +1,7 @@
 .o_view_controller {
     position: relative;
 
-    .fields_list {
+    .models_list {
         width: 420px;
         height: 100%;
         margin: 0;
@@ -10,11 +10,22 @@
         overflow-y: scroll;
         z-index: 99;
 
-        .field {
+        .model {
             border: 1px black solid;
             margin: 10px;
             padding: 5px;
             cursor: pointer;
+
+            .fields_list {
+                list-style-type: none;
+
+                .field {
+                    border: 1px black solid;
+                    margin: 10px;
+                    padding: 5px;
+                    cursor: pointer;
+                }
+            }
         }
     }
     
@@ -39,5 +50,9 @@
                 height: 100%;
             }
         }
+    }
+    
+    .o_kanban_quick_add {
+        display: none;
     }
 }

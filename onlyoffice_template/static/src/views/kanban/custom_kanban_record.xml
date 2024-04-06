@@ -32,7 +32,7 @@
                         </div>
 
                         <div class="o_kanban_record_body">
-                            <samp class="text-muted"> </samp>
+                            <span class="o_text_overflow" t-esc="props.record.data.model"/>
                         </div>
 
                         <div class="o_kanban_record_bottom">

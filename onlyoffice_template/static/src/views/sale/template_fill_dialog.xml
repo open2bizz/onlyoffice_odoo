@@ -8,9 +8,9 @@
                 </div>
                 <div class="o-pager">
                     <Pager
-                        t-if="state.templatesCount"
-                        total="state.templatesCount"
-                        offset="state.offset"
+                        t-if="state.totalTemplates"
+                        total="state.totalTemplates"
+                        offset="state.currentOffset"
                         limit="limit"
                         isEditable="false"
                         onUpdate.bind="onPagerChange"

@@ -20,13 +20,14 @@
             <field name="name">onlyoffice.template.kanban</field>
             <field name="model">onlyoffice.template</field>
             <field name="arch" type="xml">
-                <kanban js_class="custom_kanban">
+                <kanban js_class="custom_kanban" default_group_by="model">
                     <field name="id"/>
                     <field name="attachment_id"/>
                     <field name="mimetype"/>
                     <field name="create_uid"/>
                     <field name="create_date"/>
                     <field name="name"/>
+                    <field name="model"/>
                     <templates>
                         <t t-name="kanban-box">
                         </t>
