@@ -1,5 +1,6 @@
 .o_view_controller {
     position: relative;
+    background-color: #F7F7F7;
 
     .models_list {
         width: 420px;
@@ -15,20 +16,25 @@
             margin: 10px;
             padding: 5px;
             cursor: pointer;
+        }
 
-            .fields_list {
-                list-style-type: none;
+        .fields_list {
+            list-style-type: none;
 
-                .field {
-                    border: 1px black solid;
-                    margin: 10px;
-                    padding: 5px;
-                    cursor: pointer;
-                }
+            .field {
+                border: 1px black solid;
+                margin: 10px;
+                padding: 5px;
+                cursor: pointer;
             }
         }
     }
     
+    hr {
+        width: 100%;
+        color: #C0C0C0;
+    }
+
     .editor {
         display: flex;
         position: absolute;

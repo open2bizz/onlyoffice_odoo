@@ -43,7 +43,7 @@ export class CustomKanbanController extends KanbanController {
         one2many
         many2many
     */
-    async onFieldElementClicked(_event, field) {
+    async onFieldElementClicked(field) {
         const data = {
             model: field.model,
             name: field.name,
@@ -55,11 +55,10 @@ export class CustomKanbanController extends KanbanController {
     }
 
     async onTemplateCreationButtonClick() {
-        this.env.services.dialog.add(CustomKanbanDialog, {
+        const dialog = this.env.services.dialog.add(CustomKanbanDialog, {
             resModel: 'onlyoffice.template',
             title: this.env._t("Create"),
             onSave: async (record) => {
-                console.log(record)
                 const result = await this.rpc(`/onlyoffice/template/create`, {
                     data: record.data
                 });
@@ -67,12 +66,13 @@ export class CustomKanbanController extends KanbanController {
                     this.notificationService.add(result.error, {type: "error", sticky: false}); 
                 } else {
                     this.notificationService.add(_t("New template created in Documents"), {type: "info", sticky: false});
-                    //await this.openTemplateEditor(result.file_id);
+                    // await this.openTemplateEditor(result.file_id);
                 }
                 this.model.load();
                 this.model.notify();
+                dialog(); // close dialog
             },
-         });
+        });
     }
 
     async getModels() {

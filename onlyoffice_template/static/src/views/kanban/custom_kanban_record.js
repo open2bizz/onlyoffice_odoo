@@ -7,7 +7,6 @@ export class CustomKanbanRecord extends KanbanRecord {
     setup() {
         super.setup();
         this.orm = useService("orm");
-        console.log(this.props.record.data)
     }
 
     getCreationDate() {

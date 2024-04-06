@@ -5,11 +5,12 @@
             <field name="name">onlyoffice.template.form</field>
             <field name="model">onlyoffice.template</field>
             <field name="arch" type="xml">
-                <form string="ONLYOFFICE Template">
+                <form string="Create template">
                     <sheet>
                         <group>
                             <field name="name"/>
                             <field name="model"/>
+                            <field name="file"/>
                         </group>
                     </sheet>
                 </form>
