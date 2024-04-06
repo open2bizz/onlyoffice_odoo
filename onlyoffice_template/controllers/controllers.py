@@ -20,13 +20,13 @@ from urllib.request import urlopen
 class OnlyofficeTemplate_Connector(http.Controller):
     @http.route("/onlyoffice/template/create", auth="user", methods=["POST"], type="json")
     def create_template(self, data):
-        file_data = file_utils.get_default_file_template(request.env.user.lang, "docx")
+        file_data = data.get('file') or base64.encodebytes(file_utils.get_default_file_template(request.env.user.lang, "docx"))
         mimetype = file_utils.get_mime_by_ext("docx")
 
         attachment = request.env['onlyoffice.template'].create({
             "name": data['name'] + ".docxf",
             "model": data['model'],
-            "file": base64.encodebytes(file_data),
+            "file": file_data,
             "mimetype": mimetype
         })
         

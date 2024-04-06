@@ -8,7 +8,7 @@ class OnlyOfficeTemplate(models.Model):
     _description = 'ONLYOFFICE Template'
 
     name = fields.Char(required=True, string="Template Name")
-    file = fields.Binary()
+    file = fields.Binary(string="Upload an existing template")
     creator_id = fields.Many2one('res.users', readonly=True, string="Creator")
     creation_date = fields.Datetime("Creation Date", readonly=True)
     attachment_id = fields.Many2one('ir.attachment', readonly=True)
