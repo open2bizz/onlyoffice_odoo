@@ -34,34 +34,35 @@ class OnlyOfficeTemplate(models.Model):
         return record
 
     @api.model
-    def get_fields_for_model(self, model_name='sale.order'):
-        models_fields_info = {}
-        fields_info = self.env[model_name].fields_get()
+    def get_fields_for_model(self, model_name):
+        processed_models = set()
+        models_info_list = []
 
-        for field_name, field_props in fields_info.items():
-            field_type = field_props['type']
-            models_fields_info.setdefault(model_name, {})[field_name] = {
-                'name': field_name,
-                'string': field_props['string'],
-                'type': field_type,
-            }
+        def process_model(name):
+            if name in processed_models:
+                return
+            processed_models.add(name)
 
-            if field_type == 'one2many':
-                self._add_related_fields(models_fields_info, field_props)
+            model_info = {'name': name, 'fields': []}
+            fields_info = self.env[name].fields_get()
 
-        return json.dumps(models_fields_info, ensure_ascii=False)
+            for field_name, field_props in fields_info.items():
+                field_type = field_props['type']
+                field_detail = {
+                    'name': field_name,
+                    'string': field_props['string'],
+                    'type': field_type,
+                }
+                model_info['fields'].append(field_detail)
 
-    def _add_related_fields(self, models_fields_info, field_props):
-        related_model_name = field_props['relation']
-        related_fields_info = self.env[related_model_name].fields_get()
+                if field_type == 'one2many':
+                    related_model_name = field_props['relation']
+                    process_model(related_model_name)
 
-        models_fields_info[related_model_name] = {
-            related_field: {
-                'name': related_field,
-                'string': related_fields_info[related_field]['string'],
-                'type': related_fields_info[related_field]['type']
-            } for related_field in related_fields_info
-        }
+            models_info_list.append(model_info)
+
+        process_model(model_name)
+        return json.dumps(models_info_list, ensure_ascii=False)
 
     def action_delete_attachment(self):
         self.ensure_one()

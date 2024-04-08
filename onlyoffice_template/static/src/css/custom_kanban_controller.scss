@@ -2,37 +2,61 @@
     position: relative;
     background-color: #F7F7F7;
 
-    .models_list {
+    .control_panel {
         width: 420px;
         height: 100%;
-        margin: 0;
-        padding: 0;
-        list-style-type: none;
-        overflow-y: scroll;
-        z-index: 99;
+        padding: 10px;
+        overflow-y: auto;
 
-        .model {
-            border: 1px black solid;
-            margin: 10px;
-            padding: 5px;
-            cursor: pointer;
-        }
-
-        .fields_list {
+        .models_list {
+            padding: 0;
             list-style-type: none;
-
-            .field {
-                border: 1px black solid;
-                margin: 10px;
-                padding: 5px;
+            z-index: 99;
+    
+            .model {
+                position: relative;
+                padding: 10px;
+                font-weight: bold;
                 cursor: pointer;
             }
-        }
-    }
+            
+            .model::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                border: 5px solid transparent;
+                border-left-color: black;
+            }
+
+            .model_open {
+                background-color: #CBCBCB;
+            }
+            
+            .model_open::before {
+                transform: translate(-100%, 50%) rotate(90deg);
+            }
     
-    hr {
-        width: 100%;
-        color: #C0C0C0;
+            .fields_list {
+                list-style-type: none;
+                padding: 0;
+
+                .field {
+                    border: 1px black solid;
+                    margin: 10px;
+                    padding: 5px;
+                    cursor: pointer;
+                }
+            }
+        }
+        
+        hr {
+            width: 100%;
+            height: 2px;
+            margin: 0;
+            color: #C0C0C0;
+        }
     }
 
     .editor {

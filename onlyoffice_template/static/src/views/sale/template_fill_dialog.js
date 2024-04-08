@@ -51,6 +51,7 @@ export class TemplateFillDialog extends Component{
         this.dp = new DropPrevious();
 
         onWillStart(async () => {
+            const { resModel } = this.props.formControllerProps;
             const views = await this.viewService.loadViews({
                 resModel: "onlyoffice.template",
                 context: this.props.context,
@@ -58,6 +59,7 @@ export class TemplateFillDialog extends Component{
             });
             await this.model.load({
                 resModel: "onlyoffice.template",
+                domain: [['model', '=', resModel]],
                 context: this.props.context,
                 orderBy: "id",
                 searchMenuTypes: [],

@@ -24,7 +24,7 @@ export class CustomKanbanController extends KanbanController {
     }
 
     async handleTemplateEdit(data) {
-        await this.openTemplateEditor(data.attachment_id[0]);
+        await this.openTemplateEditor(data);
     }
 
     /*
@@ -75,37 +75,31 @@ export class CustomKanbanController extends KanbanController {
         });
     }
 
-    async getModels() {
+    async getModels(model) {
         try {
-            const models = JSON.parse(await this.orm.call("onlyoffice.template", "get_fields_for_model", []));
+            const models = JSON.parse(await this.orm.call("onlyoffice.template", "get_fields_for_model", [model]));
             this.state.models = models;
         } catch (error) {
             console.error("getModels RPC Error:", error);
         }
     }
 
-    getArrayModels() {
-        return Object.keys(this.state.models).map((key, i) => ({
-            name: key,
-            key: i
-        }));
-    }
+    toggleModelFields(selectedModel) {
+        const isModelVisible = !this.state.visibleModel || (this.state.visibleModel != selectedModel.name);
+        if (isModelVisible) {
+            const model = this.state.models.find(model => model.name === selectedModel.name);
+            console.log("this.state.models", this.state.models)
+            console.log("model", model.fields)
 
-    toggleModelFields(_event, model) {
-        if (!this.state.visibleModel || (this.state.visibleModel != model.name)) {
-            const fieldsArray = [];
-            const fields = this.state.models[model.name];
-            Object.keys(fields).forEach((fieldName, i) => {
-                const field = fields[fieldName];
-                fieldsArray.push({
-                    name: field.name,
-                    string: field.string,
-                    type: field.type,
-                    key: i
-                });
-            });
-            this.state.fields = fieldsArray;
-            this.state.visibleModel = model.name;
+            const fields = model.fields.map((field, index) => ({
+                model: selectedModel.name,
+                name: field.name,
+                string: field.string,
+                type: field.type,
+                key: index
+            }));
+            this.state.fields = fields;
+            this.state.visibleModel = selectedModel.name;
         } else {
             this.state.fields = [];
             this.state.visibleModel = '';
@@ -118,10 +112,10 @@ export class CustomKanbanController extends KanbanController {
         iframeContainer.innerHTML = `<iframe src="/onlyoffice/editor/${id}" frameborder="0" style="width:100%; height:100%;"></iframe>`;
     }
 
-    async openTemplateEditor(id) {
+    async openTemplateEditor(data) {
         if (!this.state.isEditorVisible) {
-            await this.getModels();
-            this.embedIframe(id);
+            await this.getModels(data.model);
+            this.embedIframe(data.attachment_id[0]);
             this.state.isEditorVisible = true;
         }
     }

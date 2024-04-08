@@ -116,7 +116,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
     def template_callback(self, template_attachment_id, model_name, record_id, oo_security_token=None):
         record_id = int(record_id)
         record = http.request.env[model_name].with_user(SUPERUSER_ID).browse(record_id)
-        record_values = record.read(fields=None)[0]
+        record_values = record.read()[0]
 
         non_array_items = []
         array_items = []
@@ -128,7 +128,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
             records = http.request.env[submodel_name].with_user(SUPERUSER_ID).browse(record_ids)
             result = []
             for record in records:
-                record_values = record.read(fields=None)[0]
+                record_values = record.read()[0]
                 processed_record = {}
                 for key, value in record_values.items():
                     field_dict = {}
@@ -162,7 +162,6 @@ class OnlyofficeTemplate_Connector(http.Controller):
                 related_model = http.request.env[model_name]._fields[key].comodel_name
                 related_records = http.request.env[related_model].with_user(SUPERUSER_ID).browse(value)
                 related_values = get_related_values(related_model, value)
-                #related_values = related_records.read(fields=None)
                 field_dict[f"{related_model}"] = related_values
                 array_items.append(field_dict)
             else:
