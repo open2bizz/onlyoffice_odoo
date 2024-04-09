@@ -14,7 +14,7 @@ from odoo.addons.onlyoffice_odoo.utils import file_utils, jwt_utils, config_util
 import base64
 import requests
 import json
-import datetime
+from datetime import datetime, date
 from urllib.request import urlopen
 
 class OnlyofficeTemplate_Connector(http.Controller):
@@ -115,7 +115,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
     @http.route("/onlyoffice/template/callback/fill", auth="public")
     def template_callback(self, template_attachment_id, model_name, record_id, oo_security_token=None):
         record_id = int(record_id)
-        record = http.request.env[model_name].with_user(SUPERUSER_ID).browse(record_id)
+        record = http.request.env[model_name].sudo().browse(record_id)
         record_values = record.read()[0]
 
         non_array_items = []
@@ -125,7 +125,7 @@ class OnlyofficeTemplate_Connector(http.Controller):
         def get_related_values(submodel_name, record_ids, depth=0):
             if depth > 3:
                 return []
-            records = http.request.env[submodel_name].with_user(SUPERUSER_ID).browse(record_ids)
+            records = http.request.env[submodel_name].sudo().browse(record_ids)
             result = []
             for record in records:
                 record_values = record.read()[0]
@@ -137,65 +137,66 @@ class OnlyofficeTemplate_Connector(http.Controller):
                     elif hasattr(value, '__html__'):
                         field_dict[f"{submodel_name}_{key}"] = str(value)
                         markup_items.append(field_dict)
-                    elif isinstance(value, list) and value and http.request.env[submodel_name]._fields[key].type in ['one2many']:
+                    elif isinstance(value, list) and value and http.request.env[submodel_name]._fields[key].type == 'one2many':
                         related_model = http.request.env[submodel_name]._fields[key].comodel_name
-                        processed_record[key] = get_related_values(related_model, value, depth+1)
+                        processed_record[key] = get_related_values(related_model, value, depth + 1)
                     elif isinstance(value, tuple) and len(value) == 2:
                         processed_record[key] = value[1]
-                    elif isinstance(value, datetime.datetime):
+                    elif isinstance(value, datetime):
                         processed_record[key] = value.strftime("%Y-%m-%d %H:%M:%S")
-                    elif isinstance(value, datetime.date):
+                    elif isinstance(value, date):
                         processed_record[key] = value.strftime('%Y-%m-%d')
                     else:
                         processed_record[key] = value
                 if processed_record:
                     result.append(processed_record)
-            return result
+            field_dict = {}
+            field_dict[f"{submodel_name}"] = result
+            array_items.append(field_dict)
 
         for key, value in record_values.items():
+            processed_record = {}
             field_dict = {}
 
-            if hasattr(value, '__html__'):
+            if isinstance(value, bytes):
+                continue
+            elif hasattr(value, '__html__'):
                 field_dict[f"{model_name}_{key}"] = str(value)
                 markup_items.append(field_dict)
-            elif isinstance(value, list) and value and http.request.env[model_name]._fields[key].type in ['one2many']:
+            elif isinstance(value, list) and value and http.request.env[model_name]._fields[key].type == 'one2many':
                 related_model = http.request.env[model_name]._fields[key].comodel_name
-                related_records = http.request.env[related_model].with_user(SUPERUSER_ID).browse(value)
                 related_values = get_related_values(related_model, value)
-                field_dict[f"{related_model}"] = related_values
-                array_items.append(field_dict)
+            elif isinstance(value, tuple) and len(value) == 2:
+                processed_record[f"{model_name}_{key}"] = value[1]
+            elif isinstance(value, datetime):
+                processed_record[f"{model_name}_{key}"] = value.strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(value, date):
+                processed_record[f"{model_name}_{key}"] = value.strftime('%Y-%m-%d')
             else:
-                if isinstance(value, bytes):
-                        continue
-                elif isinstance(value, tuple) and len(value) == 2:
-                    field_dict[f"{model_name}_{key}"] = value[1]
-                elif isinstance(value, datetime.datetime):
-                    field_dict[f"{model_name}_{key}"] = value.strftime("%Y-%m-%d %H:%M:%S")
-                elif isinstance(value, datetime.date):
-                    field_dict[f"{model_name}_{key}"] = value.strftime('%Y-%m-%d')
-                else:
-                    field_dict[f"{model_name}_{key}"] = value
-                non_array_items.append(field_dict)
+                processed_record[f"{model_name}_{key}"] = value
+            
+            if processed_record:
+                non_array_items.append(processed_record)
 
-        url = config_utils.get_odoo_url(request.env) + "onlyoffice/template/download/" + template_attachment_id
+        url = config_utils.get_odoo_url(http.request.env) + "onlyoffice/template/download/" + template_attachment_id
         url_with_params = f"{url}?oo_security_token={oo_security_token}"
-
-        non_array_items_dict = {key: value for d in non_array_items for key, value in d.items()}
-        def python_to_js(value):
+        
+        def format_value_for_json(value):
             if isinstance(value, bool):
                 return str(value).lower()
             elif value is None:
                 return 'null'
             elif isinstance(value, (int, float)):
-                return f'{value}'
+                return str(value)
             return value
 
-        formatted_non_array_items = {k: python_to_js(v) for k, v in non_array_items_dict.items()}
-        json_non_array_items = json.dumps(formatted_non_array_items, ensure_ascii=False)
-        json_non_array_items = json_non_array_items.replace('true', 'true').replace('false', 'false').replace('null', 'null')
+        formatted_non_array_items = {}
+        for d in non_array_items:
+            for key, value in d.items():
+                formatted_non_array_items[key] = format_value_for_json(value)
 
+        json_non_array_items = json.dumps(formatted_non_array_items, ensure_ascii=False)
         json_array_items = json.dumps(array_items, ensure_ascii=False)
-        json_array_items = json_array_items.replace('true', 'true').replace('false', 'false').replace('null', 'null')
 
         file_content = f"""
         builder.OpenFile("{url_with_params}");
